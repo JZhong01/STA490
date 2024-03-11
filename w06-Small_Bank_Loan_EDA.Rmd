@@ -1,0 +1,403 @@
+---
+title: "Exploratory Data Analysis and Data Preprocessing of Small Bank Loan Data"
+author: "Joshua Zhong"
+date: "03/08/2024"
+output:
+ html_document:
+  toc: yes
+  toc_depth: 4
+  toc_float: yes
+  fig_width: 6
+  fig_caption: yes
+  number_sections: yes
+  theme: readable
+  editor_options:
+  chunk_output_type: console
+---
+
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r options, echo = FALSE, include = FALSE}
+
+options(scipen = 2)
+
+
+   library(knitr)
+   library(car)
+   library(dplyr)
+   library(kableExtra)
+   library(pander)
+
+
+
+
+# Specifications of outputs of code in code chunks
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	comment = FALSE,
+	results = TRUE, 
+	digits = 4
+)
+
+
+
+
+```
+
+
+# Introduction
+
+This data set is collected from banks on small business loan applications from the Small Business Association (SBA). It contains 899164 observations, each with 27 variables.The response variable is the MIS_Status value, which will display whether the loan was paid in full or defaulted on. 
+
+```{r Importing Data, echo = FALSE}
+### Import Data from Dr. Peng's website
+
+loan01 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational01.csv", header = TRUE)[, -1]
+loan02 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational02.csv", header = TRUE)[, -1]
+loan03 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational03.csv", header = TRUE)[, -1]
+loan04 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational04.csv", header = TRUE)[, -1]
+loan05 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational05.csv", header = TRUE)[, -1]
+loan06 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational06.csv", header = TRUE)[, -1]
+loan07 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational07.csv", header = TRUE)[, -1]
+loan08 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational08.csv", header = TRUE)[, -1]
+loan09 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational09.csv", header = TRUE)[, -1]
+loan = rbind(loan01, loan02, loan03, loan04, loan05, loan06, loan07, loan08, loan09)
+
+
+
+```
+
+## Variable Inspection
+
+Next, we're going to take a look at the variables we have, what they represent, and what type they are. 
+
+```{r variable inspection}
+
+# Define the variable names and descriptions
+variable_names <- names(loan)
+
+variable_types <- sapply(loan, class)
+
+descriptions <- c("Identifier (ID) Variable", "Borrower Name", "Borrower City", "Borrower State", "Borrower Zip Code", "Bank Name", "Bank State", "North American Industry Classification System code", "Date SBA Commitment Issued", "Fiscal Year of Commitment", "Loan term in months", "Number of Employees", "Business Existing (= 1) or New (= 2)", "Number of jobs created", "Number of jobs retained", "Franchise Code; 0 = Franchise, 1 = No Franchise", "Urban = 1, Rural = 2, Undefined = 0", "Revolving Credit; Y = Yes, N = No", "LowDoc Loan; Y = Yes, N = No", "Date loan is declared defaulted", "Disbursement Date", "Disbursement Amount", "Gross amount oustanding", "Loan Status; Paid off or Default", "Charged off Amount", "Gross Approved Amount", "SBA's Guaranteed Amount")
+
+# Combine into a data frame
+data <- data.frame(VariableType = variable_types, Description = descriptions)
+
+# Create the kable and specify the format as Markdown for display
+kable(data, format = "markdown", col.names = c("Variable Name", "Variable Type", "Description"))
+
+
+
+```
+
+We have a wide variety of explanatory variables for each of our observations. Socioeconomic variables about the borrower, geographic variables that explain region, personal identifiers, loan terms, and important information about the small business. 
+
+
+# Data Preprocessing
+
+Just from a cursory look of our table, we must perform some preprocessing on the data as well as reformatting certain variables. 
+
+## Remove Missing Values
+
+The first step is to remove variables where the MIS_Status value is nonexistent. This is important because MIS_Status is our response variable, so we can't perform an analysis on those observations that don't have an outcome or response. 
+
+```{r Count Missing MIS_Status, echo = TRUE}
+loan$MIS_Status[loan$MIS_Status == ""] <- NA
+sumdata <- sum(is.na(loan$MIS_Status))
+
+kable(sumdata, format = "markdown", col.names = c("Total Number of Missing MIS_Status Values"))
+
+```
+Blank values for MIS_Status variables must be removed. We first turned these values into NA values and then tabulated the total number of missing MIS_Status values - which comes out to 1997 observations without a MIS_Status value. We proceed to remove the entire observation and double check that all missing values have been removed
+
+
+```{r Remove Missing Values}
+###1 Remove missing MIS_Status values 
+new_loan <- na.omit(loan)
+sumdata2 <- sum(is.na(new_loan$MIS_Status))
+
+kable(sumdata2, format = "markdown", col.names = c("Final Number of Missing MIS_Status Values"))
+```
+
+## Reformatting Currency
+
+There are 5 variables - DisbursementGross, BalanceGross, ChgOffPrinGr, GrAppv, SBA_APPv - that are displayed in currency form (i.e. including commas and dollar signs). As a result, these variables are considered character variables. We are only interested in the numerical values. 
+
+```{r Currency Head}
+
+disbursement_gross <- head(new_loan$DisbursementGross, 5)
+balance_gross <- head(new_loan$BalanceGross, 5)
+chg_off_prin_gr <- head(new_loan$ChgOffPrinGr, 5)
+gr_appv <- head(new_loan$GrAppv, 5)
+sba_appv <- head(new_loan$SBA_Appv, 5)
+
+head_values <- list(
+  DisbursementGross = disbursement_gross,
+  BalanceGross = balance_gross,
+  ChargedOffPrincipal = chg_off_prin_gr,
+  GrossApprovedAmount = gr_appv,
+  SBA_ApprovedAmount = sba_appv
+)
+
+var_names <- c("Disbursement Gross", "Balance Gross", "Charged Off Gross Principal", "Gross Approved Amount", "SBA Guaranteed Amount")
+
+df <- data.frame(First_5 = head_values)
+
+kable(df, format = "markdown")
+
+```
+
+
+```{r Reformat Currency}
+###2 Reformat Currency format variables
+new_loan$DisbursementGross <- as.numeric(gsub("[\\$,]", "", new_loan$DisbursementGross))
+new_loan$BalanceGross <- as.numeric(gsub("[\\$,]", "", new_loan$BalanceGross))
+new_loan$ChgOffPrinGr <- as.numeric(gsub("[\\$,]", "", new_loan$ChgOffPrinGr))
+new_loan$GrAppv <- as.numeric(gsub("[\\$,]", "", new_loan$GrAppv))
+new_loan$SBA_Appv<- as.numeric(gsub("[\\$,]", "", new_loan$SBA_Appv))
+```
+
+After reformatting these character values into numerical values by removing any commas, dollar signs, and other potential currency symbols, we have our desired form. 
+
+```{r Currency Head post-reformatting}
+
+disbursement_gross <- head(new_loan$DisbursementGross, 5)
+balance_gross <- head(new_loan$BalanceGross, 5)
+chg_off_prin_gr <- head(new_loan$ChgOffPrinGr, 5)
+gr_appv <- head(new_loan$GrAppv, 5)
+sba_appv <- head(new_loan$SBA_Appv, 5)
+
+head_values <- list(
+  DisbursementGross = disbursement_gross,
+  BalanceGross = balance_gross,
+  ChargedOffPrincipal = chg_off_prin_gr,
+  GrossApprovedAmount = gr_appv,
+  SBA_ApprovedAmount = sba_appv
+)
+
+var_names <- c("Disbursement Gross", "Balance Gross", "Charged Off Gross Principal", "Gross Approved Amount", "SBA Guaranteed Amount")
+
+df <- data.frame(Changed_5 = head_values)
+
+kable(df, format = "markdown")
+
+```
+
+## Discretizing States by Geographic Regions
+
+Originally we have 51 unique values for every state and the District of Columbia as their 2 letter abbreviations. We omitted any observations that did not have a 2-letter abbreviation. We then used the following map to classify each state by its geographic region. 
+
+
+![US Geographic Regions](https://www.legendsofamerica.com/wp-content/uploads/2020/03/UnitedStatesRegions.jpg)
+
+We convert the respective states to their corresponding regions - DC was converted to Mid-Atlantic. 
+
+```{r Binning State}
+###3 Use State Categorical Variable to turn into rough geographic regions
+
+
+# 9 Geographic Regions based off the following image classification
+#https://www.legendsofamerica.com/wp-content/uploads/2020/03/UnitedStatesRegions.jpg
+
+#Remove observations w/o state classification
+new_loan$State[new_loan$State == ""] <- NA
+new_loan <- na.omit(new_loan)
+
+
+convertState <- c(
+   "ME" = "New England", "NH" = "New England", "VT" = "New England", "MA" = "New England", "RI" = "New England", "CT" = "New England",
+   "NY" = "Mid-Atlantic",  "PA" = "Mid-Atlantic", "NJ" = "Mid-Atlantic", "DE" = "Mid-Atlantic", "MD" = "Mid-Atlantic", "DC" = "Mid-Atlantic",  
+   "WV" = "South", "VA" = "South", "NC" = "South", "SC" = "South", "GA" = "South", "FL" = "South", "KY" = "South", "TN" = "South", "AL" = "South", "MS" = "South", "AR" = "South", "LA" = "South",
+   "MN" = "Midwest", "WI" = "Midwest", "MI" = "Midwest", "OH" = "Midwest", "IN" = "Midwest", "IL" = "Midwest", "IA" = "Midwest", "MO" = "Midwest",
+   "ND" = "Great Plains", "SD" = "Great Plains", "NE" = "Great Plains", "KS" = "Great Plains", "OK" = "Great Plains",
+   "MT" = "Rocky Mountain", "WY" = "Rocky Mountain", "CO" = "Rocky Mountain", "UT" = "Rocky Mountain", "ID" = "Rocky Mountain",
+   "NV" = "Southwest", "AZ" = "Southwest", "NM" = "Southwest", "TX" = "Southwest",
+   "WA" = "West Coast", "OR" = "West Coast", "CA" = "West Coast",
+   "AK" = "Non-Contiguous", "HI" = "Non-Contiguous"
+  
+)
+
+new_loan$Region <- convertState[new_loan$State]
+
+counts_by_region <- new_loan %>%
+  count(Region) %>%
+  rename(Count = n)
+
+kable_region <- kable(counts_by_region, format = "markdown")
+
+kable_region
+
+```
+
+By analyzing the counts, we get a better idea of how our loan data is distributed by US geographic regions. One thing that is potentially problematic is having only 6009 observations for one of our Non-Contiguous category - comprising of Alaska and Hawaii. While this category makes up around less than 1% of the total data, it has practical significance in viewing how Alaska and Hawaii compare to the 48 contiguous states. As a result, we will leave it in the data despite potential concerns of sparsity. 
+
+
+# Analysis
+
+Next, we'll look at how discretizing US State by Region and SBA Approved loan amounts impacts their predictive power. 
+
+
+## Default Rate by Region
+
+We're calculating the default rate based on the MIS_Status showing "Account Charged Off." When split by region, the default rates vary from 11.8% to 21.8%. From a higher-level overview there doesn't seem to be any patterns of what general regions fair better or worse in terms of defaulting on loans, except one observation: The regions with the 3 lowest default rates - Great Plains, New England, and Non-Contiguous - have among the 3 lowest overall approved loans. This seems to demonstrate that lenders in these areas are more conservative with their loans as they most likely have a stricter acceptance policy which leads to less overall loans issued and greater chance that loans will be paid back. 
+
+```{r Default Region by Region}
+###4 Calculate Default Rate by US Geographic Region
+library(dplyr)
+
+defrate_df <- 
+  new_loan %>%
+  group_by(Region) %>%
+  summarize(Count = n(),
+            CHGOFF_count = sum(MIS_Status == "CHGOFF"),
+            Default_Rate = (CHGOFF_count / Count) * 100
+            )
+
+kable_regiondefault <- kable(defrate_df, format = "markdown", col.names = c("Region", "Count", "Number Defaulted", "Default Rate"))
+
+kable_regiondefault
+```
+
+
+## Discretizing Gross Approval
+
+While in general it's good practice to avoid discretizing continuous variables as information is lost by binning them, there are 2 reasons why it's more acceptable here: 
+
+1) If you look at the summary of the Gross Approved amounts, you'll notice that there's a large right skew with 75% of loans amounting to 225k USD or less but a max value of 5.47 million USD. 
+
+```{r Discretize Gross Approval}
+###5 Discretize GrAppv
+
+summary(new_loan$GrAppv)
+
+
+breaks <- c(1000, 50000, 200000, 500000, 1000000, Inf)
+labels <- c("1k-50k", "50k-200k", "200k-500k", "500k-1 million", "More than 1 million")
+
+new_loan$GrAppv <- cut(new_loan$GrAppv, breaks = breaks, labels = labels, right = FALSE)
+
+
+#Microloans 1-50k, 
+# Average lending (regional banks and SBA Express lenders)
+# 200k-500k Medium-term loans
+# SBA 7(a) loan
+# Large SBA loan (banks don't generally offer)
+
+
+```
+
+Discretizing the variable in this case helps with this sparsity at the far right extremes. 
+
+2) The cutoffs for each bin correspond with the type of small business loan typically seen: 
+
+- 1k-50k USD: Microloans - Short-term loans that are generally seeked by newly established or growing small businesses
+- 50k-200k USD: SBA Express loans - Loans in this range are typically the amounts approved by regional banks and are generally used for purchasing a large asset (company or capital expenses) to be paid off over a longer period - can be upwards of 25 years.
+- 200k-500k USD: Medium-term loan: Meant to be paid back in 2-5 years. Generally used for an already established small business looking to expand further where the funds would help expand capital to buy larger inventory, supplies, open a new locations, etc. 
+- 500k-1 million USD: SBA 7(a) loan: This is the most common long-term loan and is generally only approved for large fixed assets or real estate. These are usually backed by collateral and loan guarantees and are only approved for well-established small businesses. 
+- 1 million+ USD: Large SBA loans: This category is for the businesses that are the most credit-worthy and those that wish to expand beyond the definitions of what a 'small business' means. 
+
+
+```{r Density Curves}
+###6 Plot Density Curves
+
+plot(density(new_loan$SBA_Appv[new_loan$GrAppv == levels(new_loan$GrAppv)[1]]), 
+     xlim = c(0,1000000),
+     main = "Overall Density of SBA_Appv Across Sub-Populations",
+     xlab = "SBA_Appv", 
+     ylab = "Density")
+
+
+for(i in 2:length(levels(new_loan$GrAppv))){
+  lines(density(new_loan$SBA_Appv[new_loan$GrAppv == levels(new_loan$GrAppv)[i]]), 
+        col = i) 
+}
+
+legend("topright", legend = levels(new_loan$GrAppv), fill = 1:length(levels(new_loan$GrAppv)))
+
+
+
+
+plot(density(new_loan$SBA_Appv[new_loan$GrAppv == levels(new_loan$GrAppv)[1]]), 
+     xlim = c(0,200000),
+     main = "Density of SBA_Appv Under 200k",
+     xlab = "SBA_Appv", 
+     ylab = "Density")
+
+
+for(i in 2:length(levels(new_loan$GrAppv))){
+  lines(density(new_loan$SBA_Appv[new_loan$GrAppv == levels(new_loan$GrAppv)[i]]), 
+        col = i) 
+}
+
+legend("topright", legend = levels(new_loan$GrAppv), fill = 1:length(levels(new_loan$GrAppv)))
+```
+
+Plotting the density curves, we get a better understanding of the distribution and spread of our different discretized bins. The overall density curve shows that the majority of loans are in the lower range (less than 50k) demonstrating that smaller loans are far more common than larger loans. Both plots exhibit an overall right-skewed distribution, but the skew significantly decreases when you compare within each of the sub-populations. 
+
+
+
+
+# Summary
+
+We performed some exploratory data analysis and data preprocessing in order to analyze the data behind our small business loan data. Then we performed 2 discretization processes: one turning our categorical variable State into larger categories of US Geographic Regions and one on our continuous variable Gross Approved loan amount into pre-defined bins. We then analyzed its impact and distribution following the discretization.
