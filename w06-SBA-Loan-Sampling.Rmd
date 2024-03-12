@@ -1,0 +1,336 @@
+---
+title: "Comparing Sampling Plans through SBA loan data"
+author: "Joshua Zhong"
+date: "03/10/2024"
+output:
+ html_document:
+  toc: yes
+  toc_depth: 4
+  toc_float: yes
+  fig_width: 6
+  fig_caption: yes
+  number_sections: yes
+  theme: readable
+  editor_options:
+  chunk_output_type: console
+---
+
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r options, echo = FALSE, include = FALSE}
+
+options(scipen = 2)
+
+
+   library(knitr)
+   library(car)
+   library(dplyr)
+   library(kableExtra)
+   library(pander)
+
+
+
+
+# Specifications of outputs of code in code chunks
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	comment = FALSE,
+	results = TRUE, 
+	digits = 4
+)
+
+
+```
+
+
+# Introduction
+
+This data set is collected from banks on small business loan applications from the Small Business Association (SBA). It contains 899164 observations, each with 27 variables.The response variable is the MIS_Status value, which will display whether the loan was paid in full or defaulted on. 
+
+```{r Importing Data, echo = FALSE}
+### Import Data from Dr. Peng's website
+
+loan01 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational01.csv", header = TRUE)[, -1]
+loan02 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational02.csv", header = TRUE)[, -1]
+loan03 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational03.csv", header = TRUE)[, -1]
+loan04 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational04.csv", header = TRUE)[, -1]
+loan05 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational05.csv", header = TRUE)[, -1]
+loan06 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational06.csv", header = TRUE)[, -1]
+loan07 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational07.csv", header = TRUE)[, -1]
+loan08 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational08.csv", header = TRUE)[, -1]
+loan09 = read.csv("https://pengdsci.github.io/datasets/SBAloan/w06-SBAnational09.csv", header = TRUE)[, -1]
+loan = rbind(loan01, loan02, loan03, loan04, loan05, loan06, loan07, loan08, loan09)
+
+
+
+```
+
+## Variable Inspection
+
+Next, we're going to take a look at the variables we have, what they represent, and what type they are. 
+
+```{r variable inspection}
+
+# Define the variable names and descriptions
+variable_names <- names(loan)
+
+variable_types <- sapply(loan, class)
+
+descriptions <- c("Identifier (ID) Variable", "Borrower Name", "Borrower City", "Borrower State", "Borrower Zip Code", "Bank Name", "Bank State", "North American Industry Classification System code", "Date SBA Commitment Issued", "Fiscal Year of Commitment", "Loan term in months", "Number of Employees", "Business Existing (= 1) or New (= 2)", "Number of jobs created", "Number of jobs retained", "Franchise Code; 0 = Franchise, 1 = No Franchise", "Urban = 1, Rural = 2, Undefined = 0", "Revolving Credit; Y = Yes, N = No", "LowDoc Loan; Y = Yes, N = No", "Date loan is declared defaulted", "Disbursement Date", "Disbursement Amount", "Gross amount oustanding", "Loan Status; Paid off or Default", "Charged off Amount", "Gross Approved Amount", "SBA's Guaranteed Amount")
+
+# Combine into a data frame
+data <- data.frame(VariableType = variable_types, Description = descriptions)
+
+# Create the kable and specify the format as Markdown for display
+kable(data, format = "markdown", col.names = c("Variable Name", "Variable Type", "Description"))
+
+
+
+```
+
+We have a wide variety of explanatory variables for each of our observations. Socioeconomic variables about the borrower, geographic variables that explain region, personal identifiers, loan terms, and important information about the small business. 
+
+
+# Data Preprocessing/Sampling Preparation
+
+Just from a cursory look of our table, we must perform some preprocessing on the data as well as reformatting certain variables. 
+
+## Remove Missing Values
+
+The first step is to remove variables where the MIS_Status value is nonexistent. This is important because MIS_Status is our response variable, so we can't perform an analysis on those observations that don't have an outcome or response. 
+
+```{r Count Missing MIS_Status, echo = TRUE}
+loan$MIS_Status[loan$MIS_Status == ""] <- NA
+sumdata <- sum(is.na(loan$MIS_Status))
+
+kable(sumdata, format = "markdown", col.names = c("Total Number of Missing MIS_Status Values"))
+
+```
+Blank values for MIS_Status variables must be removed. We first turned these values into NA values and then tabulated the total number of missing MIS_Status values - which comes out to 1997 observations without a MIS_Status value. We proceed to remove the entire observation and double check that all missing values have been removed
+
+
+```{r Remove Missing Values}
+###1 Remove missing MIS_Status values 
+new_loan <- na.omit(loan)
+sumdata2 <- sum(is.na(new_loan$MIS_Status))
+
+kable(sumdata2, format = "markdown", col.names = c("Final Number of Missing MIS_Status Values"))
+```
+
+## Discretizing States by Geographic Regions
+
+Originally we have 51 unique values for every state and the District of Columbia as their 2 letter abbreviations. We omitted any observations that did not have a 2-letter abbreviation. We then used the following map to classify each state by its geographic region. 
+
+
+![US Geographic Regions](https://www.legendsofamerica.com/wp-content/uploads/2020/03/UnitedStatesRegions.jpg)
+
+We convert the respective states to their corresponding regions - DC was converted to Mid-Atlantic. 
+
+```{r Binning State}
+###3 Use State Categorical Variable to turn into rough geographic regions
+
+
+# 9 Geographic Regions based off the following image classification
+#https://www.legendsofamerica.com/wp-content/uploads/2020/03/UnitedStatesRegions.jpg
+
+#Remove observations w/o state classification
+new_loan$State[new_loan$State == ""] <- NA
+new_loan <- na.omit(new_loan)
+
+
+convertState <- c(
+   "ME" = "New England", "NH" = "New England", "VT" = "New England", "MA" = "New England", "RI" = "New England", "CT" = "New England",
+   "NY" = "Mid-Atlantic",  "PA" = "Mid-Atlantic", "NJ" = "Mid-Atlantic", "DE" = "Mid-Atlantic", "MD" = "Mid-Atlantic", "DC" = "Mid-Atlantic",  
+   "WV" = "South", "VA" = "South", "NC" = "South", "SC" = "South", "GA" = "South", "FL" = "South", "KY" = "South", "TN" = "South", "AL" = "South", "MS" = "South", "AR" = "South", "LA" = "South",
+   "MN" = "Midwest", "WI" = "Midwest", "MI" = "Midwest", "OH" = "Midwest", "IN" = "Midwest", "IL" = "Midwest", "IA" = "Midwest", "MO" = "Midwest",
+   "ND" = "Great Plains", "SD" = "Great Plains", "NE" = "Great Plains", "KS" = "Great Plains", "OK" = "Great Plains",
+   "MT" = "Rocky Mountain", "WY" = "Rocky Mountain", "CO" = "Rocky Mountain", "UT" = "Rocky Mountain", "ID" = "Rocky Mountain",
+   "NV" = "Southwest", "AZ" = "Southwest", "NM" = "Southwest", "TX" = "Southwest",
+   "WA" = "West Coast", "OR" = "West Coast", "CA" = "West Coast",
+   "AK" = "Non-Contiguous", "HI" = "Non-Contiguous"
+  
+)
+
+new_loan$Region <- convertState[new_loan$State]
+
+counts_by_region <- new_loan %>%
+  count(Region) %>%
+  rename(Count = n)
+
+kable_region <- kable(counts_by_region, format = "markdown")
+
+kable_region
+
+```
+
+By analyzing the counts, we get a better idea of how our loan data is distributed by US geographic regions. One thing that is potentially problematic is having only 6009 observations for one of our Non-Contiguous category - comprising of Alaska and Hawaii. While this category makes up around less than 1% of the total data, it has practical significance in viewing how Alaska and Hawaii compare to the 48 contiguous states. As a result, we will leave it in the data despite potential concerns of sparsity. 
+
+
+## Clustering Zip Code
+
+We chose to cluster the Zip Code variable because zip codes have geographic proximity that oftentimes have similar demographics and socioeconomic status. This makes it ideal as we want to make each cluster's loan observations as similar to each other as possible.  
+
+The method of clustering chosen was taking Zip Codes that were similar numerically to each other (i.e. the first 3 digits were identical) and grouping all Zip Codes into one cluster. 
+
+```{r cluster zip code}
+
+new_loan$ZipCluster <- substr(as.character(new_loan$Zip), 1, 3)
+
+new_loan$ClusterID <- as.numeric(as.factor(new_loan$ZipCluster))
+
+
+```
+
+
+# Sampling 
+
+We will perform 4 types of sampling on the loan data: Simple Random Sample, Systematic Sample, Stratified Sample, and Cluster Sample using Zip Code. 
+
+
+## Simple Random Sample
+
+In simple random sampling, every member of the population has an equal chance of being selected. We set a seed to make our results reproducible and used the sample function to randomly select 1300 observations from the new_loan data set. This type of sampling is beneficial because it ensures that every observation has the same probability of selection, which minimizes bias and makes the sample representative of the population.
+
+```{r simple random sample}
+set.seed(100)
+
+random_sample <- new_loan[sample(1:nrow(new_loan), size = 1300, replace = FALSE), ]
+
+
+
+```
+
+
+## Systematic Random Sample
+
+Systematic sampling involves selecting members from a larger population according to a random starting point and a fixed, periodic interval. This technique ensures that the population is evenly sampled and is often simpler and more straightforward than simple random sampling. It's particularly useful when a complete list of all members of the population is available. In this case, we calculate the interval by dividing the population size by the desired sample size, choose a random start within the first interval, and then select every nth observation thereafter.
+
+```{r systematic random sample}
+set.seed(100)
+
+sample_interval <- floor(nrow(new_loan) / 1300)
+
+start_point <- sample(1:sample_interval, size = 1)
+
+systematic_sample <- new_loan[seq(start_point, nrow(new_loan), by = sample_interval), ]
+
+
+```
+
+
+## Stratified Sample
+
+Stratified sampling is a method where the population is divided into homogeneous subgroups, known as strata, and random samples are taken from each stratum. The strata_sizes vector is used to ensure that the sample size for each stratum is proportional to the stratum's size within the population. This method can provide greater precision than simple random sampling by ensuring that specific subgroups are adequately represented in the sample. This can be particularly important if we expect that the measurements could differ by subgroup.
+
+```{r stratified sample}
+set.seed(100)
+
+
+total_sample_size <- 1300
+
+strata_sizes <- new_loan %>%
+  group_by(Region) %>%
+  summarise(count = n())
+
+strata_sizes <- strata_sizes %>%
+  mutate(proportion = count / sum(count))
+
+strata_sizes <- strata_sizes %>%
+  mutate(samples_to_take = round(proportion * total_sample_size))
+
+new_loan <- new_loan %>%
+  left_join(strata_sizes, by = "Region")
+
+
+stratified_sample <- new_loan %>%
+  group_by(Region) %>%
+  sample_n(min(samples_to_take)) %>%
+  ungroup()
+
+
+```
+
+
+## Cluster Sample
+
+Cluster sampling is a technique where the population is divided into separate groups, or clusters. A random sample of these clusters is then selected for analysis. In our case, we define each unique ZIP code as a cluster and then randomly select a number of these clusters. This method is advantageous when it is costly or impractical to conduct a census of the entire population. It is particularly useful when the population is spread out geographically and individual elements are not conveniently accessible.
+
+```{r cluster sample}
+set.seed(100)
+
+zip_codes <- unique(new_loan$ClusterID)
+
+selected_zips <- sample(zip_codes, size = 4) 
+
+
+cluster_sample <- new_loan[new_loan$ClusterID %in% selected_zips, ]
+
+
+```
+
+
+
+# Summary
+
+In this study, we leveraged the SBA loan dataset to compare different sampling techniques and their applicability to real-world data analysis scenarios. We began by preprocessing the dataset, which involved handling missing values and reclassifying the state variable into broader geographic regions. Then, we undertook four distinct sampling strategies—simple random, systematic, stratified, and cluster sampling—each chosen for its unique benefits and alignment with our data characteristics. Simple random sampling allowed for unbiased representation, while systematic sampling provided an evenly distributed selection. Stratified sampling enhanced the accuracy by considering sub-group proportions, and cluster sampling with ZIP codes took advantage of natural geographical divisions. These methodologies, underpinned by robust statistical principles, aimed to yield insights reflective of the larger population of small business loan applications.
