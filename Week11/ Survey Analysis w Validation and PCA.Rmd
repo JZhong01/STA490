@@ -1,7 +1,7 @@
 ---
 title: "Survey Analysis - Validation and PCA"
 author: "Joshua Zhong"
-date: "03/08/2024"
+date: "04/20/2024"
 output:
  html_document:
   toc: yes
@@ -151,7 +151,8 @@ As a result, there were no missing values present after this removal.
 
 ```{r data preprocessing}
 
-survey_data <- read.csv('at-risk-survey-data.csv')
+#survey_data <- read.csv('at-risk-survey-data.csv')
+survey_data <- read.csv('https://raw.githubusercontent.com/JZhong01/STA490/main/Week11/at-risk-survey-data.csv')
 
 survey_data <- na.omit(survey_data)
 
