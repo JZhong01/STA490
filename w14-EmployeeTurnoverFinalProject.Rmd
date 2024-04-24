@@ -1,0 +1,136 @@
+---
+title: "Employee Turnover"
+author: "Joshua Zhong"
+date: "04/20/2024"
+output:
+ html_document:
+  toc: yes
+  toc_depth: 4
+  toc_float: yes
+  fig_width: 6
+  fig_caption: yes
+  number_sections: yes
+  theme: readable
+  editor_options:
+  chunk_output_type: console
+---
+
+
+
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+
+```{r options, echo = FALSE, include = FALSE}
+
+options(scipen = 2)
+
+
+   library(tidyverse)
+   library(GPArotation)
+   library(psych)
+   library(nFactors)
+   library(rmarkdown)
+   library(knitr)
+   library(parameters)
+   library(corrplot)
+   library(ggcorrplot)
+   library(ggfortify)
+   require(ggplot2)
+   require(GGally) 
+   require(CCA)
+   require(olsrr)
+   require(cocron)
+
+
+
+# Specifications of outputs of code in code chunks
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	comment = FALSE,
+	results = TRUE, 
+	digits = 4
+)
+
+
+```
+
+
+```{r import data}
+
+turnover_data <- read.csv("https://raw.githubusercontent.com/JZhong01/STA490/main/Week15/turnover-data-set.csv")
+
+
+```
+
+
+
+
+```{r EDA}
+
+hist(turnover_data$age)
+
+sum(is.na(turnover_data)) # 0 NA values
+
+
+```
