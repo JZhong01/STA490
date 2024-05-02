@@ -1,7 +1,7 @@
 ---
 title: "Employee Turnover"
 author: "Joshua Zhong"
-date: "04/20/2024"
+date: "04/24/2024"
 output:
  html_document:
   toc: yes
@@ -94,6 +94,7 @@ options(scipen = 2)
    library(corrplot)
    library(ggcorrplot)
    library(ggfortify)
+   library(dplyr)
    require(ggplot2)
    require(GGally) 
    require(CCA)
@@ -124,13 +125,89 @@ turnover_data <- read.csv("https://raw.githubusercontent.com/JZhong01/STA490/mai
 ```
 
 
+```{r data preprocessing}
+
+turnover_data2 <- turnover_data
+
+turnover_data2$gender <- ifelse(turnover_data2$gender == "m", 1, 0)
+#male = 1, female = 0
+
+turnover_data2$greywage <- ifelse(turnover_data2$greywage == "grey", 1, 0) #grey = 1, white = 0
+
+turnover_data2$head_gender <- ifelse(turnover_data2$head_gender == "m", 1, 0)
+#male = 1, female = 0
+
+turnover_data2 <- turnover_data2 %>%
+  mutate(way = case_when(
+    way == "foot" ~ 0,
+    way == "bus"  ~ 1,
+    way == "car"  ~ 2
+  ))
+#by foot = 0, by bus = 1, by car = 2
+
+turnover_data2 <- turnover_data2 %>%
+  mutate(coach = case_when(
+    coach == "no" ~ 0,
+    coach == "yes"  ~ 1,
+    coach == "my head"  ~ 2
+  ))
+#no coach = 0, non-boss coach = 1, boss was coach = 2
+
+
+turnover_data2 <- turnover_data2 %>%
+  mutate(industry = case_when(
+      industry %in% c("Banks", "RealEstate", "Insurance") ~ 1,
+      industry %in% c("manufacture", "Building", "PowerGeneration") ~ 2,
+      industry %in% c("Retail", "HoReCa", "Telecom") ~ 3,
+      industry %in% c("IT", "Consult", "Telecom") ~ 4,
+      TRUE ~ 5
+  )) 
+#Grouped into 5 aggregate industries: Finance (1), Industrial (2), Commercial (3), Tech (4), Other (5)
+
+turnover_data2 <- turnover_data2 %>%
+  mutate(profession = case_when(
+    profession %in% c("Accounting", "Finan?e", "Law") ~ 1,
+    profession %in% c("Sales", "Marketing", "BusinessDevelopment", "Commercial") ~ 2,
+    profession %in% c("HR", "PR") ~ 3,
+    profession %in% c("Engineer", "IT", "Consult") ~ 4,
+    profession %in% c("Teaching", "manage") ~ 5,
+    profession == "etc" ~ 0
+))
+
+#Grouped into 6 aggregate professions: Finance/Legal (1), Sales/Marketing (2), Human/Public Relations (3), Technical (4), Education & Management (5), Other (0) 
+
+
+turnover_data2 <- turnover_data2 %>%
+  rename(Agreeableness = independ, Extraversion = extraversion, Conscientiousness = selfcontrol, Neuroticism = anxiety, Openness = novator)
+#Rename Big 5 Personalities 
+
+
+
+turnover_data2 <-turnover_data2 %>%
+  mutate(traffic = case_when(
+    traffic %in% c("KA", "advert", "recNErab", "referal", "youjs")~ 1,
+    traffic %in% c("empjs", "friends", "rabrecNErab") ~ 0
+     )
+)
+# You initiate reaching out to employer ~ 1, Employer reaches out to you ~ 0
+
+   
+   
+   
+```
+
 
 
 ```{r EDA}
 
-hist(turnover_data$age)
+hist(turnover_data2$age)
 
-sum(is.na(turnover_data)) # 0 NA values
+sum(is.na(turnover_data2)) # 0 NA values
+
+
+pairs.panels(turnover_data, pch=21, main="Pair-wise Scatter Plot of r numerical variables")
 
 
 ```
+
+
