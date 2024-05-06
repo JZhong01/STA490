@@ -101,6 +101,8 @@ options(scipen = 2)
    require(olsrr)
    require(cocron)
 
+   library(psych)
+
 
 
 # Specifications of outputs of code in code chunks
@@ -205,9 +207,19 @@ hist(turnover_data2$age)
 sum(is.na(turnover_data2)) # 0 NA values
 
 
-pairs.panels(turnover_data, pch=21, main="Pair-wise Scatter Plot of r numerical variables")
+pairs.panels(turnover_data2, pch=21, main="Pair-wise Scatter Plot of r numerical variables")
 
+#describe(turnover_data2)
+
+par(mfrow= c(2,2))
+
+hist(turnover_data2$stag, xlab = "Experience", main = "Histogram of Relevant Experience")
+hist(turnover_data2$age, xlab = "Age", main = "Histogram of Employee Ages")
+hist(turnover_data2$Extraversion, xlab = "Score", main = "Histogram of Extraversion Scores")
+hist(turnover_data2$Agreeableness, xlab = "Score", main = "Histogram of Agreeableness Scores")
+hist(turnover_data2$Conscientiousness, xlab = "Score", main = "Histogram of Conscientiousness Scores")
+hist(turnover_data2$Neuroticism, xlab = "Score", main = "Histogram of Neuroticism Scores")
+hist(turnover_data2$Openness, xlab = "Score", main = "Histogram of Openness Scores")
 
 ```
-
 
