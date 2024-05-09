@@ -132,6 +132,10 @@ turnover_data2 <-turnover_data2 %>%
      )
 )
 
+turnover_data2$profession <- as.factor(turnover_data2$profession)
+turnover_data2$industry <- as.factor(turnover_data2$industry)
+turnover_data2$way <- as.factor(turnover_data2$way)
+
 ```
 
 ## Table of Contents
@@ -380,10 +384,10 @@ Weak correlations, but no striking violations to assumption of linearity or obvi
   
 ---
   
-## Summary Inferential Statistics for Full Demographic Model
+## Summary Inferential Statistics for Full  Model
 
 ```{r}
-full.model = glm(event ~ stag + gender + age + industry + profession + traffic + coach + head_gender + greywage + way , 
+full.model = glm(event ~ stag + gender + age + industry + profession + traffic + coach + head_gender + greywage + way + Extraversion + Agreeableness + Conscientiousness + Neuroticism + Openness, 
           family = binomial(link = "logit"),  #  logit(p) = log(p/(1-p))!
           data = turnover_data2)
 
@@ -400,7 +404,7 @@ kable(full.model_coef, "html", caption = "Summary of Logistic Regression Model")
 ```
 
 ---
-## Stepwise AIC Algorithm for Stepwise Demographic Model
+## Stepwise AIC Algorithm for Stepwise Model
 
 - A stepwise function that chooses predictors based off AIC values was utilized in the creation of the stepwise model.
 
@@ -409,35 +413,42 @@ kable(full.model_coef, "html", caption = "Summary of Logistic Regression Model")
 - Removed the variables of gender, industry, profession, traffic, and greywage.
 
 ---
-## Summary Inferential Statistics for Stepwise Demographic Model
+## Summary Inferential Statistics for Stepwise Model
 
 ```{r}
 final.model.forward = stepAIC(full.model,
                       direction = "backward",   # forward selection
                       trace = 0   # do not show the details
                       )
-kable(summary(final.model.forward)$coef, 
-      caption="Summary of inferential statistics of the final model")
+
+final.model_coef <- summary(final.model.forward)$coefficients
+colnames(final.model_coef) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+
+# Generate a kable object
+kable(final.model_coef, "html", caption = "Summary of Logistic Regression Model") %>%
+  kable_styling("striped", full_width = F, position = "left") %>%
+  scroll_box(width = "100%", height = "400px", extra_css = "overflow-y: scroll; margin-bottom: 20px;")
 
 ```
 
 ---
-## Goodness of Fit for two Demographic Models
+## Goodness of Fit for Full and Reduced Models
 
 Goodness of fit was compared through null deviance residuals, deviance residuals, and AIC
 
-Null deviance residual - measure of how well the response can be predicted with just the intercept
-Deviance residual - measure of how well a response can be predicted with a model with p predictors
-AIC - Akaike information criterion (AIC), a single number score estimates models relatively to other models
+- Null deviance residual: measure of how well the response can be predicted with just the intercept
+- Deviance residual: measure of how well a response can be predicted with a model with p predictors
+- AIC(Akaike information criterion): a single number score which estimates models relatively to other models
+
 <br>
+
 ```{r}
 ## Other global goodness-of-fit
 global.measure=function(s.logit){
 dev.resid = s.logit$deviance
 dev.0.resid = s.logit$null.deviance
 aic = s.logit$aic
-goodness = cbind(Deviance.residual =dev.resid, Null.Deviance.Residual = dev.0.resid,
-      AIC = aic)
+goodness = cbind(Deviance.residual =dev.resid, Null.Deviance.Residual = dev.0.resid, AIC = aic)
 goodness
 }
 goodness=rbind(full.model = global.measure(full.model),
@@ -448,23 +459,27 @@ kable(goodness, caption ="Comparison of global goodness-of-fit statistics")
 ```
 
 <br>
-Full model: χ2(24.788, 10) = 0.005762
-Stepwise model: χ2(19.313, 5) = 0.001680
 
 Stepwise model chosen as final model due to smaller p-value and AIC values
 
 ---
-## Summary statistics of final demographic model and Odds Ratios
+## Summary statistics of stepwise model and Odds Ratios
 
 ```{r}
 model.coef.stats = summary(final.model.forward)$coef
 odds.ratio = exp(coef(final.model.forward))
 out.stats = cbind(model.coef.stats, odds.ratio = odds.ratio)                 
-kable(out.stats,caption = "Summary Stats with Odds Ratios")
+
+colnames(out.stats) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)", "odds.ratio")
+
+# Generate a kable object
+kable(out.stats, "html", caption = "Summary Stats with Odds Ratios") %>%
+  kable_styling("striped", full_width = F, position = "left") %>%
+  scroll_box(width = "100%", height = "400px", extra_css = "overflow-y: scroll; margin-bottom: 20px;")
 ```
 
 ---
-## Model Diagnostics for Demographic Model
+## Model Diagnostics for Full Model
 
 - No major influential points or outliers were found through looking at standardized residuals and Cook's distance
 - Multicollinearity checked through VIF - values all <2 
@@ -527,10 +542,12 @@ kable(summary(final.model.big5)$coef,
 
 Goodness of fit was compared through null deviance residuals, deviance residuals, and AIC
 
-Null deviance residual - measure of how well the response can be predicted with just the intercept
-Deviance residual - measure of how well a response can be predicted with a model with p predictors
-AIC - Akaike information criterion (AIC), a single number score estimates models relatively to other models
+- Null deviance residual: measure of how well the response can be predicted with just the intercept
+- Deviance residual: measure of how well a response can be predicted with a model with p predictors
+- AIC(Akaike information criterion): a single number score which estimates models relatively to other models
+
 <br>
+
 ```{r}
 ## Other global goodness-of-fit
 global.measure=function(s.logit){
@@ -542,14 +559,14 @@ goodness = cbind(Deviance.residual =dev.resid, Null.Deviance.Residual = dev.0.re
 goodness
 }
 goodness=rbind(full.model.big5 = global.measure(full.model.big5),
-      stepwise.mode.big5 =global.measure(final.model.big5))
-row.names(goodness) = c("full.model.big5", "stepwise.mode.big5")
+      stepwise.model.big5 =global.measure(final.model.big5))
+row.names(goodness) = c("full.model.big5", "stepwise.model.big5")
 kable(goodness, caption ="Comparison of global goodness-of-fit statistics")
 
 ```
+
 <br>
-Full model: χ2(7.71, 5) =  0.172959
-Stepwise model: χ2(7.04, 2) = 0.029599
+
 
 Stepwise model chosen as final model due to smaller p-value and AIC values
 
@@ -577,7 +594,7 @@ kable(out.stats,caption = "Summary Stats with Odds Ratios")
 
 ## Conclusion 
 
-While these models are an improvement over using a the intercept, the improvement is not enough to be meaningfully accurate. When tested with a bootstrapped 5-fold CV both demographic model and personality trait model returned accuracies of roughly 54%
+While these models are an improvement over using a the intercept, the improvement is not enough to be meaningfully accurate. When tested with a bootstrapped 5-fold CV both the full model and personality trait model returned accuracies of roughly 54%
 
 ---
 
@@ -617,5 +634,3 @@ Also conceptually the idea of using personality traits as a predictor of employe
 ---
 
 ## Questions or Comments?
-
-
